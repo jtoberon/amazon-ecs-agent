@@ -15,6 +15,7 @@ package containermetadata
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/aws/amazon-ecs-agent/agent/api"
 
@@ -27,10 +28,11 @@ import (
 // available prior to container creation
 // Since we accept incomplete metadata fields, we should not return
 // errors here and handle them at this or the above stage.
-func (manager *metadataManager) parseMetadataAtContainerCreate(taskARN string, containerName string) Metadata {
+func (manager *metadataManager) parseMetadataAtContainerCreate(task *api.Task, containerName string) Metadata {
+	taskDefinitionRevision := parseTaskDefinitionRevision(task, containerName)
 	return Metadata{
 		cluster:              manager.cluster,
-		taskMetadata:         TaskMetadata{containerName: containerName, taskARN: taskARN},
+		taskMetadata:         TaskMetadata{containerName: containerName, taskARN: task.Arn, taskDefinitionFamily: task.Family, taskDefinitionRevision: taskDefinitionRevision},
 		containerInstanceARN: manager.containerInstanceARN,
 		metadataStatus:       MetadataInitial,
 	}
@@ -40,15 +42,24 @@ func (manager *metadataManager) parseMetadataAtContainerCreate(taskARN string, c
 // configuration and data then packages it for JSON Marshaling
 // Since we accept incomplete metadata fields, we should not return
 // errors here and handle them at this or the above stage.
-func (manager *metadataManager) parseMetadata(dockerContainer *docker.Container, taskARN string, containerName string) Metadata {
-	dockerMD := parseDockerContainerMetadata(taskARN, containerName, dockerContainer)
+func (manager *metadataManager) parseMetadata(dockerContainer *docker.Container, task *api.Task, containerName string) Metadata {
+	taskDefinitionRevision := parseTaskDefinitionRevision(task, containerName)
+	dockerMD := parseDockerContainerMetadata(task.Arn, containerName, dockerContainer)
 	return Metadata{
 		cluster:                 manager.cluster,
-		taskMetadata:            TaskMetadata{containerName: containerName, taskARN: taskARN},
+		taskMetadata:            TaskMetadata{containerName: containerName, taskARN: task.Arn, taskDefinitionFamily: task.Family, taskDefinitionRevision: taskDefinitionRevision},
 		dockerContainerMetadata: dockerMD,
 		containerInstanceARN:    manager.containerInstanceARN,
 		metadataStatus:          MetadataReady,
 	}
+}
+
+func parseTaskDefinitionRevision(task *api.Task, containerName string) int {
+	taskDefinitionRevision, err := strconv.Atoi(task.Version)
+	if err != nil {
+		seelog.Warnf("Failed to parse task Version '%s' for task %s container %s: %v", task.Version, task.Arn, containerName, err)
+	}
+	return taskDefinitionRevision
 }
 
 // parseDockerContainerMetadata parses the metadata in a docker container

@@ -113,8 +113,10 @@ type DockerContainerMetadata struct {
 // TaskMetadata keeps track of all metadata associated with a task
 // provided by AWS, does not depend on the creation of the container
 type TaskMetadata struct {
-	containerName string
-	taskARN       string
+	containerName          string
+	taskARN                string
+	taskDefinitionFamily   string
+	taskDefinitionRevision int
 }
 
 // Metadata packages all acquired metadata and is used to format it
@@ -130,11 +132,13 @@ type Metadata struct {
 }
 
 // metadataSerializer is an intermediate struct that converts the information
-// in Metadata into information to encode into JSOn
+// in Metadata into information to encode into JSON
 type metadataSerializer struct {
 	Cluster              string            `json:"Cluster,omitempty"`
 	ContainerInstanceARN string            `json:"ContainerInstanceARN,omitempty"`
 	TaskARN              string            `json:"TaskARN,omitempty"`
+	TaskDefinitionFamily string            `json:"TaskDefinitionFamily,omitempty"`
+	TaskDefinitionRevision int             `json:"TaskDefinitionRevision,omitempty"`
 	ContainerID          string            `json:"ContainerID,omitempty"`
 	ContainerName        string            `json:"ContainerName,omitempty"`
 	DockerContainerName  string            `json:"DockerContainerName,omitempty"`
@@ -151,6 +155,8 @@ func (m Metadata) MarshalJSON() ([]byte, error) {
 			Cluster:              m.cluster,
 			ContainerInstanceARN: m.containerInstanceARN,
 			TaskARN:              m.taskMetadata.taskARN,
+			TaskDefinitionFamily: m.taskMetadata.taskDefinitionFamily,
+			TaskDefinitionRevision: m.taskMetadata.taskDefinitionRevision,
 			ContainerID:          m.dockerContainerMetadata.containerID,
 			ContainerName:        m.taskMetadata.containerName,
 			DockerContainerName:  m.dockerContainerMetadata.dockerContainerName,
